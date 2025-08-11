@@ -1,81 +1,15 @@
-<!doctype html>
-<html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <title>Countdown “Stress Pensioni” — Italia</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root { color-scheme: light dark; --bg:#0b1020; --fg:#e9eef5; --muted:#94a3b8; --accent:#30d5c8; }
-    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); }
-    header, footer { padding:16px 20px; }
-    header { border-bottom:1px solid #1f2942; }
-    h1 { margin:0 0 4px; font-size:24px; }
-    main { max-width:900px; margin:0 auto; padding:24px 20px; }
-    .countdown { font-size: clamp(24px, 6vw, 56px); font-weight:700; letter-spacing:0.5px; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:16px; }
-    .card { background:#111831; border:1px solid #1f2942; border-radius:12px; padding:16px; }
-    .muted { color:var(--muted); font-size:14px; }
-    label { display:block; font-weight:600; margin:10px 0 6px; }
-    input, select { width:100%; padding:10px; border-radius:8px; border:1px solid #2c375a; background:#0e1427; color:var(--fg); }
-    button { background:var(--accent); color:#032; border:0; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; }
-    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    a { color:#7dd3fc; text-decoration:none; }
-    .ok { color:#22c55e } .warn { color:#facc15 } .err { color:#f87171 }
-    small code { background:#0e1427; padding:2px 6px; border-radius:6px; }
-  </style>
-</head>
-<body>
-<header>
-  <h1>Countdown “Stress Pensioni” — Italia</h1>
-  <div class="muted">Clock informativo basato su indicatori pubblici. Soglie configurabili.</div>
-</header>
-<main>
-  <div class="card">
-    <div class="countdown" id="cd">—</div>
-    <div class="muted" id="targetDesc">Calcolo in corso…</div>
-  </div>
+<!doctype html> <html lang="it"> <head> <meta charset="utf-8" /> <title>Countdown “Stress Pensioni” — Italia</title> <meta name="viewport" content="width=device-width,initial-scale=1" /> <style> :root { color-scheme: light dark; --bg:#0b1020; --fg:#e9eef5; --muted:#94a3b8; --accent:#30d5c8; } body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); } header, footer { padding:16px 20px; } header { border-bottom:1px solid #1f2942; } h1 { margin:0 0 4px; font-size:24px; } main { max-width:900px; margin:0 auto; padding:24px 20px; } .countdown { font-size: clamp(24px, 6vw, 56px); font-weight:700; letter-spacing:0.5px; } .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:16px; } .card { background:#111831; border:1px solid #1f2942; border-radius:12px; padding:16px; } .muted { color:var(--muted); font-size:14px; } label { display:block; font-weight:600; margin:10px 0 6px; } input, select { width:100%; padding:10px; border-radius:8px; border:1px solid #2c375a; background:#0e1427; color:var(--fg); } button { background:var(--accent); color:#032; border:0; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; } .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } a { color:#7dd3fc; text-decoration:none; } .ok { color:#22c55e } .warn { color:#facc15 } .err { color:#f87171 } </style> </head> <body> <header> <h1>Countdown “Stress Pensioni” — Italia</h1> <div class="muted">Clock informativo basato su indicatori pubblici. Soglie configurabili.</div> </header> <main> <div class="card"> <div class="countdown" id="cd">—</div> <div class="muted" id="targetDesc">Calcolo in corso…</div> </div> <div class="grid"> <div class="card"> <h3>Impostazioni soglie</h3> <label for="oadr">Soglia demografica OADR (65+/15–64)</label> <input id="oadr" type="number" min="30" max="120" step="1" value="60" /> <label for="spesa">Soglia spesa pensioni / PIL (%)</label> <input id="spesa" type="number" min="10" max="30" step="0.1" value="17.0" /> <label for="proj">Scenario proiezione Eurostat</label> <select id="proj"> <option value="BSL" selected>Baseline (Eurostat)</option> <option value="HIGH">High variant</option> <option value="LOW">Low variant</option> </select> <div class="row" style="margin-top:12px"> <button id="apply">Ricalcola</button> <span id="status" class="muted">—</span> </div> </div><div class="card">
+  <h3>Indicatori usati (ultimo aggiornamento)</h3>
+  <div id="lastOADR" class="muted">OADR: —</div>
+  <div id="lastSpend" class="muted">Spesa/PIL (Eurostat): —</div>
+  <div id="notes" class="muted" style="margin-top:8px"></div>
+</div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>Impostazioni soglie</h3>
-      <label for="oadr">Soglia demografica OADR (OLDDEP1, 65+/15–64)</label>
-      <input id="oadr" type="number" min="30" max="120" step="1" value="60" />
-      <label for="spesa">Soglia spesa pensioni / PIL (%)</label>
-      <input id="spesa" type="number" min="10" max="30" step="0.1" value="17.0" />
-      <label for="proj">Scenario proiezione Eurostat</label>
-      <select id="proj">
-        <option value="BSL" selected>Baseline (Eurostat)</option>
-        <option value="HIGH">High variant</option>
-        <option value="LOW">Low variant</option>
-      </select>
-      <div class="row" style="margin-top:12px">
-        <button id="apply">Ricalcola</button>
-        <span id="status" class="muted">—</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Indicatori usati (ultimo aggiornamento)</h3>
-      <div id="lastOADR" class="muted">OADR: —</div>
-      <div id="lastSpend" class="muted">Spesa/PIL (Ageing Report): —</div>
-      <div id="notes" class="muted" style="margin-top:8px"></div>
-    </div>
-
-    <div class="card">
-      <h3>Fonti</h3>
-      <ul class="muted">
-        <li>Eurostat API (DEMO_PJANIND, TPS00200).</li>
-        <li>2024 Ageing Report (allegati statistici).</li>
-        <li>Estendibile: INPS Open Data.</li>
-      </ul>
-      <p class="muted">Questo strumento non “prevede” un fallimento, ma segnala quando gli indicatori superano soglie scelte.</p>
-    </div>
-  </div>
-</main>
-
-<footer class="muted">
-  Suggerimento: ospita questa pagina su GitHub Pages o Netlify. Per integrare anche INPS/RGS lato server, chiedi e ti passo una funzione serverless con caching.
-</footer>
-
-<script> const eurostatBase = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data'; const fmt = n => new Intl.NumberFormat('it-IT', {maximumFractionDigits:1}).format(n); // Countdown let tInt = null; function renderCountdown(targetYear, label) { const cd = document.getElementById('cd'); const desc = document.getElementById('targetDesc'); if (!targetYear) { cd.textContent = '—'; desc.textContent = 'Nessuna soglia superata nell’orizzonte dati.'; return; } const targetDate = new Date(`${targetYear}-01-01T00:00:00Z`); function tick() { const now = new Date(); const ms = targetDate - now; if (ms <= 0) { cd.textContent = '0 giorni 00:00:00'; desc.textContent = `Soglia superata (anno ${targetYear}: ${label}).`; clearInterval(tInt); return; } const s = Math.floor(ms/1000); const d = Math.floor(s/86400); const h = Math.floor((s%86400)/3600); const m = Math.floor((s%3600)/60); const ss = s%60; cd.textContent = `${d} giorni ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; desc.textContent = `Countdown verso la prima soglia superata (${label}).`; } if (tInt) clearInterval(tInt); tick(); tInt = setInterval(tick, 1000); } // Parser JSON‑stat -> serie per anno function jsonstatTimeSeries(js) { if (!js || js.class !== 'dataset' || !js.dimension) throw new Error('JSON-stat inatteso'); const ids = js.id || Object.keys(js.dimension); const roleTime = js.role && js.role.time && js.role.time[0]; const timeId = roleTime || ids.find(d => d.toLowerCase() === 'time' || d.toLowerCase() === 'time_period'); if (!timeId) throw new Error('Dimensione tempo non trovata'); const timeDim = js.dimension[timeId]; const indexMap = timeDim.category.index; const timeCodes = []; for (const [code, pos] of Object.entries(indexMap)) timeCodes[pos] = code; const size = js.size; const total = size.reduce((a,b)=>a*b,1); let values; if (Array.isArray(js.value)) values = js.value.slice(0, total); else { values = new Array(total).fill(null); for (const [k,v] of Object.entries(js.value)) values[Number(k)] = v; } const tIdx = ids.indexOf(timeId); const tLen = size[tIdx]; if (values.length !== tLen) { // estrai la sezione lungo il tempo assumendo le altre dimensioni all’indice 0 const strides = []; for (let i=ids.length-1, acc=1; i>=0; i--) { strides[i]=acc; acc*=size[i]; } const baseIndex = 0; const step = strides[tIdx]; const v2 = []; for (let k=0; k<tLen; k++) v2[k] = values[baseIndex + k*step]; values = v2; } return timeCodes.map((c, i) => ({ y: Number(String(c).replace(/[^0-9]/g,'')), v: values[i]===null? null : Number(values[i]) })) .filter(p => Number.isFinite(p.y) && p.v!=null && !Number.isNaN(p.v)) .sort((a,b)=>a.y-b.y); } async function fetchEurostat(url) { const r = await fetch(url, { headers: { 'accept':'application/json' }}); if (!r.ok) throw new Error('Eurostat HTTP '+r.status); return r.json(); } // OADR ultimo disponibile (DEMO_PJANIND) async function getLatestOADR() { const u = `${eurostatBase}/DEMO_PJANIND?geo=IT&indic_de=OLDDEP1&lastTimePeriod=1`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); if (!series.length) throw new Error('Nessun dato OADR'); const last = series[series.length-1]; return { year: last.y, value: last.v }; } // OADR proiettato (TPS00200) e primo anno che supera la soglia async function getProjectedOADR(projection='BSL', threshold=60) { const u = `${eurostatBase}/TPS00200?freq=A&indic_de=OLDDEP1&geo=IT&projection=${encodeURIComponent(projection)}&sinceTimePeriod=2019`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); let crossYear = null; for (const p of series) { if (p.v >= threshold) { crossYear = p.y; break; } } return { series, crossYear }; } // Spesa pensioni / PIL (%) – dataset Eurostat (evita XLSX e CORS) // Nota: usiamo il “table code” tps00103 (pensioni in % PIL); in alternativa si può usare il dataset di base spr_exp_pens. async function getPensionSpend(threshold=17.0) { const u = `${eurostatBase}/TPS00103?geo=IT&sinceTimePeriod=2000`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); const last = series[series.length-1]; const crossYear = last && last.v >= threshold ? last.y : null; return { series, last, crossYear }; } async function recalc() { const oadrTh = Number(document.getElementById('oadr').value); const spendTh = Number(document.getElementById('spesa').value); const proj = document.getElementById('proj').value; const status = document.getElementById('status'); status.textContent = 'Aggiornamento…'; let latestOADR, projOADR, spend; let notes = []; try { latestOADR = await getLatestOADR(); document.getElementById('lastOADR').textContent = `OADR ultimo: ${fmt(latestOADR.value)} (anno ${latestOADR.year}) — Eurostat DEMO_PJANIND`; } catch (e) { document.getElementById('lastOADR').innerHTML = `<span class="err">Errore OADR: ${e.message}</span>`; } try { projOADR = await getProjectedOADR(proj, oadrTh); } catch (e) { notes.push('Proiezioni OADR non disponibili.'); } try { spend = await getPensionSpend(spendTh); if (spend.last) { document.getElementById('lastSpend').textContent = `Spesa/PIL ultimo: ${fmt(spend.last.v)}% (anno ${spend.last.y}) — Eurostat TPS00103`; } else { document.getElementById('lastSpend').textContent = 'Spesa/PIL: —'; } } catch (e) { document.getElementById('lastSpend').innerHTML = `<span class="warn">Spesa/PIL non letta: ${e.message}</span>`; } const candidates = []; if (projOADR?.crossYear) candidates.push({ y: projOADR.crossYear, lbl:'OADR' }); if (spend?.crossYear) candidates.push({ y: spend.crossYear, lbl:'Spesa/PIL' }); candidates.sort((a,b)=>a.y-b.y); if (candidates.length) { renderCountdown(candidates[0].y, candidates[0].lbl); } else { renderCountdown(null); } document.getElementById('notes').textContent = notes.join(' '); status.textContent = 'OK'; } document.getElementById('apply').addEventListener('click', recalc); recalc(); </script></body>
-</html>
+<div class="card">
+  <h3>Fonti</h3>
+  <ul class="muted">
+    <li>Eurostat API “statistics/1.0” (JSON‑stat): DEMO_PJANIND (OADR attuale), TPS00200 (OADR proiettato), TPS00103 (pensioni in % PIL).</li>
+    <li>Estendibile: INPS Open Data per serie amministrative.</li>
+  </ul>
+  <p class="muted">Questo strumento non “prevede” un fallimento, ma segnala quando gli indicatori superano soglie scelte.</p>
+</div></div> </main> <footer class="muted"> Statico e client‑side (GitHub Pages). Niente XLSX, niente CORS. Per integrare altre fonti lato server chiedi pure. </footer> <script> const eurostatBase = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data'; const fmt = n => new Intl.NumberFormat('it-IT', {maximumFractionDigits:1}).format(n); // Countdown let tInt = null; function renderCountdown(targetYear, label) { const cd = document.getElementById('cd'); const desc = document.getElementById('targetDesc'); if (!targetYear) { cd.textContent = '—'; desc.textContent = 'Nessuna soglia superata nell’orizzonte dati.'; return; } const targetDate = new Date(`${targetYear}-01-01T00:00:00Z`); function tick() { const now = new Date(); const ms = targetDate - now; if (ms <= 0) { cd.textContent = '0 giorni 00:00:00'; desc.textContent = `Soglia superata (anno ${targetYear}: ${label}).`; clearInterval(tInt); return; } const s = Math.floor(ms/1000); const d = Math.floor(s/86400); const h = Math.floor((s%86400)/3600); const m = Math.floor((s%3600)/60); const ss = s%60; cd.textContent = `${d} giorni ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; desc.textContent = `Countdown verso la prima soglia superata (${label}).`; } if (tInt) clearInterval(tInt); tick(); tInt = setInterval(tick, 1000); } // JSON‑stat -> serie temporale (assume 1 combinazione sulle altre dimensioni nel risultato) function jsonstatTimeSeries(js) { if (!js || js.class !== 'dataset' || !js.dimension) throw new Error('JSON-stat inatteso'); const ids = js.id || Object.keys(js.dimension); const roleTime = js.role && js.role.time && js.role.time[0]; const timeId = roleTime || ids.find(d => d.toLowerCase() === 'time' || d.toLowerCase() === 'time_period'); if (!timeId) throw new Error('Dimensione tempo non trovata'); const timeDim = js.dimension[timeId]; const indexMap = timeDim.category.index; const timeCodes = []; for (const [code, pos] of Object.entries(indexMap)) timeCodes[pos] = code; const size = js.size; const total = size.reduce((a,b)=>a*b,1); let values; if (Array.isArray(js.value)) values = js.value.slice(0, total); else { values = new Array(total).fill(null); for (const [k,v] of Object.entries(js.value)) values[Number(k)] = v; } const tIdx = ids.indexOf(timeId); const tLen = size[tIdx]; if (values.length !== tLen) { // estrai la sezione lungo il tempo assumendo le altre dimensioni a indice 0 const strides = []; for (let i=ids.length-1, acc=1; i>=0; i--) { strides[i]=acc; acc*=size[i]; } const baseIndex = 0; const step = strides[tIdx]; const v2 = []; for (let k=0; k<tLen; k++) v2[k] = values[baseIndex + k*step]; values = v2; } return timeCodes.map((c, i) => ({ y: Number(String(c).replace(/[^0-9]/g,'')), v: values[i]===null? null : Number(values[i]) })) .filter(p => Number.isFinite(p.y) && p.v!=null && !Number.isNaN(p.v)) .sort((a,b)=>a.y-b.y); } async function fetchEurostat(url) { const r = await fetch(url, { headers: { 'accept':'application/json' }}); if (!r.ok) throw new Error('Eurostat HTTP '+r.status); return r.json(); } // OADR ultimo disponibile (DEMO_PJANIND, OLDDEP1) async function getLatestOADR() { const u = `${eurostatBase}/DEMO_PJANIND?geo=IT&indic_de=OLDDEP1&lastTimePeriod=1`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); if (!series.length) throw new Error('Nessun dato OADR'); const last = series[series.length-1]; return { year: last.y, value: last.v }; } // OADR proiettato (TPS00200) e primo anno che supera la soglia async function getProjectedOADR(projection='BSL', threshold=60) { const u = `${eurostatBase}/TPS00200?freq=A&indic_de=OLDDEP1&geo=IT&projection=${encodeURIComponent(projection)}&sinceTimePeriod=2019`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); let crossYear = null; for (const p of series) { if (p.v >= threshold) { crossYear = p.y; break; } } return { series, crossYear }; } // Spesa pensioni / PIL (%) – TPS00103 (niente CORS) async function getPensionSpend(threshold=17.0) { const u = `${eurostatBase}/TPS00103?geo=IT&sinceTimePeriod=2000`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); const last = series[series.length-1]; const crossYear = last && last.v >= threshold ? last.y : null; return { series, last, crossYear }; } async function recalc() { const oadrTh = Number(document.getElementById('oadr').value); const spendTh = Number(document.getElementById('spesa').value); const proj = document.getElementById('proj').value; const status = document.getElementById('status'); status.textContent = 'Aggiornamento…'; let latestOADR, projOADR, spend; let notes = []; try { latestOADR = await getLatestOADR(); document.getElementById('lastOADR').textContent = `OADR ultimo: ${fmt(latestOADR.value)} (anno ${latestOADR.year}) — Eurostat DEMO_PJANIND`; } catch (e) { document.getElementById('lastOADR').innerHTML = `<span class="err">Errore OADR: ${e.message}</span>`; } try { projOADR = await getProjectedOADR(proj, oadrTh); } catch (e) { notes.push('Proiezioni OADR non disponibili.'); } try { spend = await getPensionSpend(spendTh); if (spend.last) { document.getElementById('lastSpend').textContent = `Spesa/PIL ultimo: ${fmt(spend.last.v)}% (anno ${spend.last.y}) — Eurostat TPS00103`; } else { document.getElementById('lastSpend').textContent = 'Spesa/PIL: —'; } } catch (e) { document.getElementById('lastSpend').innerHTML = `<span class="warn">Spesa/PIL non letta: ${e.message}</span>`; } const candidates = []; if (projOADR?.crossYear) candidates.push({ y: projOADR.crossYear, lbl:'OADR' }); if (spend?.crossYear) candidates.push({ y: spend.crossYear, lbl:'Spesa/PIL' }); candidates.sort((a,b)=>a.y-b.y); if (candidates.length) { renderCountdown(candidates[0].y, candidates[0].lbl); } else { renderCountdown(null); } document.getElementById('notes').textContent = notes.join(' '); status.textContent = 'OK'; } document.getElementById('apply').addEventListener('click', recalc); recalc(); </script> </body> </html>
