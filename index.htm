@@ -14,11 +14,12 @@
 </head>
 <body>
     <h1>Previsione del Fallimento del Sistema Pensionistico Italiano</h1>
-    <p>Questa pagina web fetcha dati in tempo reale da API pubbliche (Eurostat) per calcolare indicatori di sostenibilità del sistema pensionistico italiano. Basato su proiezioni ufficiali, il sistema è previsto sostenibile a lungo termine grazie alle riforme passate, ma con rischi nel medio periodo dovuti all'invecchiamento demografico.</p>
+    <p>Questa pagina web fetcha dati in tempo reale da API pubbliche (Eurostat) e dal sito INPS per calcolare indicatori di sostenibilità del sistema pensionistico italiano. Basato su proiezioni ufficiali, il sistema è previsto sostenibile a lungo termine grazie alle riforme passate, ma con rischi nel medio periodo dovuti all'invecchiamento demografico.</p>
     <p>Indicatori chiave:</p>
     <ul>
         <li>Spesa pensionistica come % del PIL (da Eurostat, dataset tps00103).</li>
         <li>Old-age dependency ratio: Popolazione 65+ / Popolazione 15-64 (da Eurostat, dataset tps00198).</li>
+        <li>Dati INPS: Numero pensioni vigenti e importo complessivo annuo (parsati dalla pagina news INPS più recente).</li>
         <li>Previsione semplificata: Se il ratio supera il 50% o la spesa >16% del PIL, il sistema è "a rischio" nel medio termine (basato su trend storici e proiezioni RGS/MEF fino al 2070).</li>
     </ul>
     <button onclick="fetchData()">Carica Dati Aggiornati</button>
@@ -34,7 +35,6 @@
                 const pensionExpUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/tps00103?geo=IT&time=2021&time=2022&time=2023&time=2024&time=2025';
                 const pensionResponse = await fetch(pensionExpUrl);
                 const pensionData = await pensionResponse.json();
-                // Assumendo che value sia un oggetto con chiavi come '2024', etc.
                 const pensionYears = Object.keys(pensionData.value || {}).sort((a,b) => b - a);
                 const latestPensionYear = pensionYears[0];
                 let pensionPct = pensionData.value[latestPensionYear] || 'N/A';
@@ -53,6 +53,17 @@
                     dependencyRatio = dependencyRatio.toFixed(2);
                 }
 
+                // Fetch INPS data from news page
+                const inpsUrl = 'https://www.inps.it/it/it/inps-comunica/notizie/dettaglio-news-page.news.2025.03.osservatorio-sulle-pensioni-i-dati-2024-e-2025.html';
+                const inpsResponse = await fetch(inpsUrl);
+                const inpsText = await inpsResponse.text();
+                // Parse total pensioni vigenti
+                const totalPensioniMatch = /totale di ([\d\.]+) pensioni vigenti/.exec(inpsText);
+                const totalPensioni = totalPensioniMatch ? totalPensioniMatch[1] : 'N/A';
+                // Parse importo complessivo
+                const importoMatch = /Importo complessivo annuo: ([\d,]+) miliardi di euro/.exec(inpsText);
+                const importoAnnuale = importoMatch ? importoMatch[1] : 'N/A';
+
                 // Calcolo previsione semplificata basata su trend (da documenti MEF/RGS: picco 17% GDP al 2040, poi calo a 14% al 2070)
                 let forecast = '';
                 if (parseFloat(pensionPct) > 16 || parseFloat(dependencyRatio) > 50) {
@@ -70,9 +81,12 @@
                 resultsDiv.innerHTML = `
                     <p><strong>Spesa Pensionistica % GDP (anno ${latestPensionYear}):</strong> ${pensionPct}%</p>
                     <p><strong>Old-Age Dependency Ratio (anno ${latestRatioYear}):</strong> ${dependencyRatio}%</p>
+                    <p><strong>Dati INPS (vigenti al 1° gennaio 2025):</strong></p>
+                    <p>- Numero pensioni: ${totalPensioni}</p>
+                    <p>- Importo complessivo annuo: ${importoAnnuale} miliardi di euro</p>
                     <p><strong>Previsione Basata su Dati:</strong> ${forecast}</p>
                     ${projectedMessage}
-                    <p>Fonte: Eurostat API. Dati aggiornati al ${new Date().toLocaleDateString()}. Nota: Le proiezioni sono semplificate; consulta documenti ufficiali MEF/RGS per dettagli.</p>
+                    <p>Fonte: Eurostat API e sito INPS. Dati aggiornati al ${new Date().toLocaleDateString()}. Nota: Le proiezioni sono semplificate; consulta documenti ufficiali MEF/RGS per dettagli. I dati INPS sono estratti dalla pagina news; aggiornare l'URL per release future.</p>
                 `;
             } catch (error) {
                 resultsDiv.innerHTML = '<p class="warning">Errore nel caricamento dati: ' + error.message + '</p>';
@@ -81,5 +95,6 @@
     </script>
 </body>
 </html>
+
 
 
