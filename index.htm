@@ -14,11 +14,11 @@
 </head>
 <body>
     <h1>Previsione del Fallimento del Sistema Pensionistico Italiano</h1>
-    <p>Questa pagina web fetcha dati in tempo reale da API pubbliche (Eurostat e ISTAT) per calcolare indicatori di sostenibilità del sistema pensionistico italiano. Basato su proiezioni ufficiali, il sistema è previsto sostenibile a lungo termine grazie alle riforme passate, ma con rischi nel medio periodo dovuti all'invecchiamento demografico.</p>
+    <p>Questa pagina web fetcha dati in tempo reale da API pubbliche (Eurostat) per calcolare indicatori di sostenibilità del sistema pensionistico italiano. Basato su proiezioni ufficiali, il sistema è previsto sostenibile a lungo termine grazie alle riforme passate, ma con rischi nel medio periodo dovuti all'invecchiamento demografico.</p>
     <p>Indicatori chiave:</p>
     <ul>
-        <li>Spesa pensionistica come % del PIL (da Eurostat).</li>
-        <li>Old-age dependency ratio: Popolazione 65+ / Popolazione 15-64 (da Eurostat).</li>
+        <li>Spesa pensionistica come % del PIL (da Eurostat, dataset tps00103).</li>
+        <li>Old-age dependency ratio: Popolazione 65+ / Popolazione 15-64 (da Eurostat, dataset tps00198).</li>
         <li>Previsione semplificata: Se il ratio supera il 50% o la spesa >16% del PIL, il sistema è "a rischio" nel medio termine (basato su trend storici e proiezioni RGS/MEF fino al 2070).</li>
     </ul>
     <button onclick="fetchData()">Carica Dati Aggiornati</button>
@@ -30,40 +30,46 @@
             resultsDiv.innerHTML = '<p>Caricamento dati...</p>';
 
             try {
-                // Fetch spesa pensioni % GDP da Eurostat API (dataset: spr_exp_gdp per social protection, focus su pensioni)
-                const pensionExpUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/spr_exp_pens?geo=IT&unit=PC_GDP&time=2022&time=2023&pens=DISPEN+EARLPEN+OLDPEN+PARPEN+SURVPEN'; // Esempio query per Italia, ultimi anni disponibili
+                // Fetch spesa pensioni % GDP da Eurostat API (dataset: tps00103)
+                const pensionExpUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/tps00103?geo=IT&time=2021&time=2022&time=2023&time=2024&time=2025';
                 const pensionResponse = await fetch(pensionExpUrl);
                 const pensionData = await pensionResponse.json();
-                const latestYear = Object.keys(pensionData.value)[0]; // Prendi ultimo anno disponibile
-                const pensionPct = pensionData.value[latestYear] || 'N/A';
-                
-                // Fetch dati demografici da Eurostat (popolazione per età)
-                const demoUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/demo_pjan?geo=IT&sex=T&age=Y_GE65&age=Y15-64&time=2023'; // Pop 65+ e 15-64, ultimo anno
-                const demoResponse = await fetch(demoUrl);
-                const demoData = await demoResponse.json();
-                const pop65 = demoData.value['IT:T:Y_GE65:2023'] || 0; // Pop 65+
-                const pop1564 = demoData.value['IT:T:Y15-64:2023'] || 1; // Pop 15-64, evita div 0
-                const dependencyRatio = ((pop65 / pop1564) * 100).toFixed(2);
+                // Assumendo che value sia un oggetto con chiavi come '2024', etc.
+                const pensionYears = Object.keys(pensionData.value || {}).sort((a,b) => b - a);
+                const latestPensionYear = pensionYears[0];
+                let pensionPct = pensionData.value[latestPensionYear] || 'N/A';
+                if (pensionPct !== 'N/A') {
+                    pensionPct = pensionPct.toFixed(2);
+                }
 
-                // Fetch dati addizionali da ISTAT SDMX API (esempio per popolazione residente)
-                const istatUrl = 'https://sdw-wsrest.ecb.europa.eu/service/data/ISTAT/DCIS_POPRES1?detail=serieskeys'; // Esempio, adatta per demografici
-                // Nota: Per ISTAT, usa https://developers.italia.it/it/api/istat-sdmx-rest.html per query precise, qui semplificato
+                // Fetch old-age dependency ratio da Eurostat (dataset: tps00198)
+                const ratioUrl = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/tps00198?geo=IT&time=2023&time=2024&time=2025';
+                const ratioResponse = await fetch(ratioUrl);
+                const ratioData = await ratioResponse.json();
+                const ratioYears = Object.keys(ratioData.value || {}).sort((a,b) => b - a);
+                const latestRatioYear = ratioYears[0];
+                let dependencyRatio = ratioData.value[latestRatioYear] || 'N/A';
+                if (dependencyRatio !== 'N/A') {
+                    dependencyRatio = dependencyRatio.toFixed(2);
+                }
 
                 // Calcolo previsione semplificata basata su trend (da documenti MEF/RGS: picco 17% GDP al 2040, poi calo a 14% al 2070)
                 let forecast = '';
-                if (pensionPct > 16 || dependencyRatio > 50) {
+                if (parseFloat(pensionPct) > 16 || parseFloat(dependencyRatio) > 50) {
                     forecast = '<p class="warning">Rischio elevato nel medio termine (fino al 2040): Spesa prevista al 17% del PIL, ratio demografico critico. Potenziale insostenibilità senza ulteriori riforme.</p>';
                 } else {
                     forecast = '<p class="info">Sistema sostenibile a lungo termine: Spesa prevista in calo dopo il 2040 grazie a riforme (es. Fornero) e adeguamenti automatici.</p>';
                 }
 
                 // Proiezione semplice lineare per dependency ratio (assumendo crescita 1% annua basata su trend storici)
-                const projectedRatio2040 = (dependencyRatio * Math.pow(1.01, 15)).toFixed(2); // 15 anni da 2025 a 2040
+                const currentYear = new Date().getFullYear();
+                const yearsTo2040 = 2040 - currentYear;
+                const projectedRatio2040 = (parseFloat(dependencyRatio) * Math.pow(1.01, yearsTo2040)).toFixed(2);
                 const projectedMessage = projectedRatio2040 > 60 ? '<p class="warning">Proiezione 2040: Ratio >60%, alto rischio di squilibrio.</p>' : '<p>Proiezione 2040: Sostenibile.</p>';
 
                 resultsDiv.innerHTML = `
-                    <p><strong>Spesa Pensionistica % GDP (ultimo anno disponibile):</strong> ${pensionPct}%</p>
-                    <p><strong>Old-Age Dependency Ratio:</strong> ${dependencyRatio}%</p>
+                    <p><strong>Spesa Pensionistica % GDP (anno ${latestPensionYear}):</strong> ${pensionPct}%</p>
+                    <p><strong>Old-Age Dependency Ratio (anno ${latestRatioYear}):</strong> ${dependencyRatio}%</p>
                     <p><strong>Previsione Basata su Dati:</strong> ${forecast}</p>
                     ${projectedMessage}
                     <p>Fonte: Eurostat API. Dati aggiornati al ${new Date().toLocaleDateString()}. Nota: Le proiezioni sono semplificate; consulta documenti ufficiali MEF/RGS per dettagli.</p>
@@ -75,5 +81,5 @@
     </script>
 </body>
 </html>
-</html>
+
 
