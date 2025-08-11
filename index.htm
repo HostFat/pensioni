@@ -53,15 +53,16 @@
                     dependencyRatio = dependencyRatio.toFixed(2);
                 }
 
-                // Fetch INPS data from news page
+                // Fetch INPS data from news page using a CORS proxy
                 const inpsUrl = 'https://www.inps.it/it/it/inps-comunica/notizie/dettaglio-news-page.news.2025.03.osservatorio-sulle-pensioni-i-dati-2024-e-2025.html';
-                const inpsResponse = await fetch(inpsUrl);
+                const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(inpsUrl)}`;
+                const inpsResponse = await fetch(proxyUrl);
                 const inpsText = await inpsResponse.text();
                 // Parse total pensioni vigenti
                 const totalPensioniMatch = /totale di ([\d\.]+) pensioni vigenti/.exec(inpsText);
                 const totalPensioni = totalPensioniMatch ? totalPensioniMatch[1] : 'N/A';
                 // Parse importo complessivo
-                const importoMatch = /Importo complessivo annuo: ([\d,]+) miliardi di euro/.exec(inpsText);
+                const importoMatch = /importo complessivo annuo .*?pari a ([\d,]+) miliardi di euro/.exec(inpsText);
                 const importoAnnuale = importoMatch ? importoMatch[1] : 'N/A';
 
                 // Calcolo previsione semplificata basata su trend (da documenti MEF/RGS: picco 17% GDP al 2040, poi calo a 14% al 2070)
@@ -86,7 +87,7 @@
                     <p>- Importo complessivo annuo: ${importoAnnuale} miliardi di euro</p>
                     <p><strong>Previsione Basata su Dati:</strong> ${forecast}</p>
                     ${projectedMessage}
-                    <p>Fonte: Eurostat API e sito INPS. Dati aggiornati al ${new Date().toLocaleDateString()}. Nota: Le proiezioni sono semplificate; consulta documenti ufficiali MEF/RGS per dettagli. I dati INPS sono estratti dalla pagina news; aggiornare l'URL per release future.</p>
+                    <p>Fonte: Eurostat API e sito INPS. Dati aggiornati al ${new Date().toLocaleDateString()}. Nota: Le proiezioni sono semplificate; consulta documenti ufficiali MEF/RGS per dettagli. I dati INPS sono estratti dalla pagina news; aggiornare l'URL per release future. Utilizzato proxy per bypassare CORS.</p>
                 `;
             } catch (error) {
                 resultsDiv.innerHTML = '<p class="warning">Errore nel caricamento dati: ' + error.message + '</p>';
@@ -95,6 +96,7 @@
     </script>
 </body>
 </html>
+
 
 
 
