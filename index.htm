@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>Countdown “Stress Pensioni” — Italia</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { color-scheme: light dark; --bg:#0b1020; --fg:#e9eef5; --muted:#94a3b8; --accent:#30d5c8; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); }
+    header, footer { padding:16px 20px; }
+    header { border-bottom:1px solid #1f2942; }
+    h1 { margin:0 0 4px; font-size:24px; }
+    main { max-width:900px; margin:0 auto; padding:24px 20px; }
+    .countdown { font-size: clamp(24px, 6vw, 56px); font-weight:700; letter-spacing:0.5px; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:16px; }
+    .card { background:#111831; border:1px solid #1f2942; border-radius:12px; padding:16px; }
+    .muted { color:var(--muted); font-size:14px; }
+    label { display:block; font-weight:600; margin:10px 0 6px; }
+    input, select { width:100%; padding:10px; border-radius:8px; border:1px solid #2c375a; background:#0e1427; color:var(--fg); }
+    button { background:var(--accent); color:#032; border:0; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    a { color:#7dd3fc; text-decoration:none; }
+    .ok { color:#22c55e } .warn { color:#facc15 } .err { color:#f87171 }
+    small code { background:#0e1427; padding:2px 6px; border-radius:6px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Countdown “Stress Pensioni” — Italia</h1>
+  <div class="muted">Clock informativo basato su indicatori pubblici. Soglie configurabili.</div>
+</header>
+<main>
+  <div class="card">
+    <div class="countdown" id="cd">—</div>
+    <div class="muted" id="targetDesc">Calcolo in corso…</div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Impostazioni soglie</h3>
+      <label for="oadr">Soglia demografica OADR (OLDDEP1, 65+/15–64)</label>
+      <input id="oadr" type="number" min="30" max="120" step="1" value="60" />
+      <label for="spesa">Soglia spesa pensioni / PIL (%)</label>
+      <input id="spesa" type="number" min="10" max="30" step="0.1" value="17.0" />
+      <label for="proj">Scenario proiezione Eurostat</label>
+      <select id="proj">
+        <option value="BSL" selected>Baseline (Eurostat)</option>
+        <option value="HIGH">High variant</option>
+        <option value="LOW">Low variant</option>
+      </select>
+      <div class="row" style="margin-top:12px">
+        <button id="apply">Ricalcola</button>
+        <span id="status" class="muted">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Indicatori usati (ultimo aggiornamento)</h3>
+      <div id="lastOADR" class="muted">OADR: —</div>
+      <div id="lastSpend" class="muted">Spesa/PIL (Ageing Report): —</div>
+      <div id="notes" class="muted" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <h3>Fonti</h3>
+      <ul class="muted">
+        <li>Eurostat API (DEMO_PJANIND, TPS00200).</li>
+        <li>2024 Ageing Report (allegati statistici).</li>
+        <li>Estendibile: INPS Open Data.</li>
+      </ul>
+      <p class="muted">Questo strumento non “prevede” un fallimento, ma segnala quando gli indicatori superano soglie scelte.</p>
+    </div>
+  </div>
+</main>
+
+<footer class="muted">
+  Suggerimento: ospita questa pagina su GitHub Pages o Netlify. Per integrare anche INPS/RGS lato server, chiedi e ti passo una funzione serverless con caching.
+</footer>
+
+<script>
+const eurostatBase = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data';
+const fmt = n => new Intl.NumberFormat('it-IT', {maximumFractionDigits:1}).format(n);
+
+// Countdown rendering
+let tInt = null;
+function renderCountdown(targetDate) {
+  if (tInt) clearInterval(tInt);
+  const cd = document.getElementById('cd');
+  const desc = document.getElementById('targetDesc');
+  if (!targetDate) { cd.textContent = '—'; desc.textContent = 'Nessuna soglia superata nell’orizzonte dati.'; return; }
+  function tick() {
+    const now = new Date();
+    const ms = targetDate - now;
+    if (ms <= 0) { cd.textContent = '0 giorni 00:00:00'; desc.textContent = 'Soglia superata.'; clearInterval(tInt); return; }
+    const s = Math.floor(ms/1000);
+    const d = Math.floor(s/86400);
+    const h = Math.floor((s%86400)/3600);
+    const m = Math.floor((s%3600)/60);
+    const ss = s%60;
+    cd.textContent = `${d} giorni ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+  tick(); tInt = setInterval(tick, 1000);
+  desc.textContent = 'Countdown verso la prima soglia superata';
+}
+
+// Eurostat fetch helper (statistics/1.0 returns an object with data: [{time, value, ...}])
+async function fetchEurostat(url) {
+  const r = await fetch(url, { headers: { 'accept':'application/json' }});
+  if (!r.ok) throw new Error('Eurostat HTTP '+r.status);
+  return r.json();
+}
+
+async function getLatestOADR() {
+  // OADR corrente Italia (OLDDEP1) dal dataset DEMO_PJANIND, ultimo anno disponibile
+  const u = `${eurostatBase}/DEMO_PJANIND?geo=IT&indic_de=OLDDEP1&lastTimePeriod=1`;
+  const js = await fetchEurostat(u);
+  // Nuovo endpoint “statistics/1.0”: dati in js.value o js.data; gestiamo entrambe le forme
+  let value = null, year = null;
+  if (js && Array.isArray(js.value) && js.value.length) {
+    const obs = js.value[0];
+    value = obs.value; year = obs.time;
+  } else if (js && js.data && js.data.length) {
+    const obs = js.data[0];
+    value = obs.value; year = obs.time;
+  }
+  if (value==null) throw new Error('Forma dati inattesa DEMO_PJANIND');
+  return { year: Number(year), value: Number(value) };
+}
+
+async function getProjectedOADR(projectionCode='BSL', threshold=60) {
+  // Proiezioni OADR Italia da TPS00200 (Baseline/High/Low) e prima data in cui supera la soglia
+  const u = `${eurostatBase}/TPS00200?geo=IT&projection=${encodeURIComponent(projectionCode)}&sinceTimePeriod=2019`;
+  const js = await fetchEurostat(u);
+  const series = (js.data ?? js.value ?? []).map(o => ({ y: Number(o.time), v: Number(o.value) }))
+                                          .filter(o => !Number.isNaN(o.y) && !Number.isNaN(o.v))
+                                          .sort((a,b)=>a.y-b.y);
+  let crossYear = null;
+  for (const p of series) { if (p.v >= threshold) { crossYear = p.y; break; } }
+  return { series, crossYear };
+}
+
+// Ageing Report: prova a leggere l’XLSX “horizontal tables” e a trovare la serie Italia “pensioni/PIL”
+async function getAgeingReportItalyPension(threshold=17.0) {
+  // Nota: può fallire per CORS. In tal caso, gestiamo graceful fallback.
+  const XLSX_URL = 'https://economy-finance.ec.europa.eu/system/files/2024-04/2024_ageing_report_statistical_annexes_horizontal_tables.xlsx';
+  try {
+    const r = await fetch(XLSX_URL);
+    if (!r.ok) throw new Error('XLSX HTTP '+r.status);
+    const buf = await r.arrayBuffer();
+    // Usa SheetJS in-browser
+    if (typeof XLSX === 'undefined') throw new Error('XLSX non caricato');
+    const wb = XLSX.read(buf, {type:'array'});
+    // Heuristica: cerca un foglio che contenga “pension” o “HICP not relevant”. Dipende dalle versioni.
+    const sheetName = wb.SheetNames.find(n => /pension/i.test(n)) || wb.SheetNames[0];
+    const ws = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, blankrows:false});
+    // Cerca riga “Italy” e colonne anno (% PIL). Alcune tavole hanno header con anni 2022..2070
+    const header = rows.find(r => r && r.some(c => String(c).match(/20\d{2}/)));
+    const yearIdx = header ? header.map((c,i)=>({y: Number(String(c).match(/^20\d{2}$/)?.[0]), i})).filter(o=>o.y) : [];
+    const itRow = rows.find(r => r && String(r[0]).toLowerCase().includes('italy'));
+    if (!itRow || !yearIdx.length) throw new Error('Struttura XLSX inattesa');
+    const series = yearIdx.map(({y,i}) => ({ y, v: Number(itRow[i]) })).filter(o=>!Number.isNaN(o.v));
+    let crossYear = null;
+    for (const p of series) { if (p.v >= threshold) { crossYear = p.y; break; } }
+    return { series, crossYear };
+  } catch (e) {
+    return { series: [], crossYear: null, error: String(e) };
+  }
+}
+
+// App logic
+async function recalc() {
+  const oadrTh = Number(document.getElementById('oadr').value);
+  const spendTh = Number(document.getElementById('spesa').value);
+  const proj = document.getElementById('proj').value;
+  const status = document.getElementById('status');
+  status.textContent = 'Aggiornamento…';
+
+  let latestOADR, projOADR, arSpend;
+  let notes = [];
+
+  try {
+    latestOADR = await getLatestOADR();
+    document.getElementById('lastOADR').textContent = `OADR ultimo: ${fmt(latestOADR.value)} (anno ${latestOADR.year}) — Eurostat DEMO_PJANIND`;
+  } catch (e) {
+    document.getElementById('lastOADR').innerHTML = `<span class="err">Errore OADR: ${e.message}</span>`;
+  }
+
+  try {
+    projOADR = await getProjectedOADR(proj, oadrTh);
+  } catch (e) {
+    notes.push('Proiezioni OADR non disponibili.');
+  }
+
+  // Carica SheetJS (solo se serve) e poi prova Ageing Report
+  if (!window.XLSX) {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    document.head.appendChild(s);
+    await new Promise(res => s.onload = res);
+  }
+  arSpend = await getAgeingReportItalyPension(spendTh);
+  if (arSpend.error) {
+    document.getElementById('lastSpend').innerHTML = `<span class="warn">Ageing Report non letto in browser (CORS). Il countdown userà solo l’OADR.</span>`;
+    notes.push('Per includere sempre la soglia di spesa, conviene spostare il parsing XLSX lato server.');
+  } else {
+    const last = arSpend.series[arSpend.series.length-1];
+    document.getElementById('lastSpend').textContent = last ? `Spesa/PIL ultimo in serie: ${fmt(last.v)}% (anno ${last.y}) — Ageing Report` : '—';
+  }
+
+  const firstCross = [projOADR?.crossYear, arSpend?.crossYear]
+    .filter(y => y && Number.isFinite(y))
+    .sort((a,b)=>a-b)[0];
+
+  if (firstCross) {
+    const targetDate = new Date(`${firstCross}-01-01T00:00:00Z`);
+    renderCountdown(targetDate);
+    document.getElementById('targetDesc').textContent =
+      `Prima soglia superata nell’anno ${firstCross} (${projOADR?.crossYear===firstCross?'OADR':''}${projOADR?.crossYear===firstCross && arSpend?.crossYear===firstCross?', ':''}${arSpend?.crossYear===firstCross?'Spesa/PIL':''}).`;
+  } else {
+    renderCountdown(null);
+  }
+
+  document.getElementById('notes').textContent = notes.join(' ');
+  status.textContent = 'OK';
+}
+
+document.getElementById('apply').addEventListener('click', recalc);
+recalc();
+</script>
+</body>
+</html>
