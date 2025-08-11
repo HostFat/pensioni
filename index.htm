@@ -1,18 +1,259 @@
-<!doctype html> <html lang="it"> <head> <meta charset="utf-8" /> <title>Countdown “Stress Pensioni” — Italia</title> <meta name="viewport" content="width=device-width,initial-scale=1" /> <style> :root { color-scheme: light dark; --bg:#0b1020; --fg:#e9eef5; --muted:#94a3b8; --accent:#30d5c8; } body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--fg); } header, footer { padding:16px 20px; } header { border-bottom:1px solid #1f2942; } h1 { margin:0 0 4px; font-size:24px; } main { max-width:900px; margin:0 auto; padding:24px 20px; } .countdown { font-size: clamp(24px, 6vw, 56px); font-weight:700; letter-spacing:0.5px; } .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-top:16px; } .card { background:#111831; border:1px solid #1f2942; border-radius:12px; padding:16px; } .muted { color:var(--muted); font-size:14px; } label { display:block; font-weight:600; margin:10px 0 6px; } input, select { width:100%; padding:10px; border-radius:8px; border:1px solid #2c375a; background:#0e1427; color:var(--fg); } button { background:var(--accent); color:#032; border:0; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer; } .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; } a { color:#7dd3fc; text-decoration:none; } .ok { color:#22c55e } .warn { color:#facc15 } .err { color:#f87171 } </style> </head> <body> <header> <h1>Countdown “Stress Pensioni” — Italia</h1> <div class="muted">Clock informativo basato su indicatori pubblici. Soglie configurabili.</div> </header> <main> <div class="card"> <div class="countdown" id="cd">—</div> <div class="muted" id="targetDesc">Calcolo in corso…</div> </div> <div class="grid"> <div class="card"> <h3>Impostazioni soglie</h3> <label for="oadr">Soglia demografica OADR (65+/15–64)</label> <input id="oadr" type="number" min="30" max="120" step="1" value="60" /> <label for="spesa">Soglia spesa pensioni / PIL (%)</label> <input id="spesa" type="number" min="10" max="30" step="0.1" value="17.0" /> <label for="proj">Scenario proiezione Eurostat</label> <select id="proj"> <option value="BSL" selected>Baseline (Eurostat)</option> <option value="HIGH">High variant</option> <option value="LOW">Low variant</option> </select> <div class="row" style="margin-top:12px"> <button id="apply">Ricalcola</button> <span id="status" class="muted">—</span> </div> </div><div class="card">
-  <h3>Indicatori usati (ultimo aggiornamento)</h3>
-  <div id="lastOADR" class="muted">OADR: —</div>
-  <div id="lastSpend" class="muted">Spesa/PIL (Eurostat): —</div>
-  <div id="notes" class="muted" style="margin-top:8px"></div>
-</div>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Previsione Sostenibilità Sistema Pensionistico Italiano</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+        }
+        #sustainability-index {
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .data-point {
+            margin-bottom: 10px;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .disclaimer {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 30px;
+            border-top: 1px solid #ccc;
+            padding-top: 15px;
+        }
+    </style>
+</head>
+<body>
 
-<div class="card">
-  <h3>Fonti</h3>
-  <ul class="muted">
-    <li>Eurostat API “statistics/1.0” (JSON‑stat): DEMO_PJANIND (OADR attuale), TPS00200 (OADR proiettato), TPS00103 (pensioni in % PIL).</li>
-    <li>Estendibile: INPS Open Data per serie amministrative.</li>
-  </ul>
-  <p class="muted">Questo strumento non “prevede” un fallimento, ma segnala quando gli indicatori superano soglie scelte.</p>
-</div></div> </main> <footer class="muted"> Statico e client‑side (GitHub Pages). Niente XLSX, niente CORS. Per integrare altre fonti lato server chiedi pure. </footer> 
-<script> const eurostatBase = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data'; const fmt = n => new Intl.NumberFormat('it-IT', {maximumFractionDigits:1}).format(n); let tInt = null; function renderCountdown(targetYear, label) { const cd = document.getElementById('cd'); const desc = document.getElementById('targetDesc'); if (!targetYear) { cd.textContent = '—'; desc.textContent = 'Nessuna soglia superata nell’orizzonte dati.'; return; } const targetDate = new Date(`${targetYear}-01-01T00:00:00Z`); function tick() { const now = new Date(); const ms = targetDate - now; if (ms <= 0) { cd.textContent = '0 giorni 00:00:00'; desc.textContent = `Soglia superata (anno ${targetYear}: ${label}).`; clearInterval(tInt); return; } const s = Math.floor(ms/1000); const d = Math.floor(s/86400); const h = Math.floor((s%86400)/3600); const m = Math.floor((s%3600)/60); const ss = s%60; cd.textContent = `${d} giorni ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; desc.textContent = `Countdown verso la prima soglia superata (${label}).`; } if (tInt) clearInterval(tInt); tick(); tInt = setInterval(tick, 1000); } // JSON‑stat -> serie temporale function jsonstatTimeSeries(js) { if (!js || js.class !== 'dataset' || !js.dimension) throw new Error('JSON-stat inatteso'); const ids = js.id || Object.keys(js.dimension); const roleTime = js.role && js.role.time && js.role.time[0]; const timeId = roleTime || ids.find(d => d.toLowerCase()==='time' || d.toLowerCase()==='time_period'); if (!timeId) throw new Error('Dimensione tempo non trovata'); const dim = js.dimension[timeId]; // ricava l’ordine dei codici del tempo let timeCodes = []; if (dim.category && dim.category.index) { const index = dim.category.index; // {code:pos} timeCodes = []; for (const [code, pos] of Object.entries(index)) timeCodes[pos] = code; } else if (dim.category && Array.isArray(dim.category.id)) { timeCodes = dim.category.id.slice(); } else if (dim.category && dim.category.label) { timeCodes = Object.keys(dim.category.label); } else { throw new Error('Categoria tempo senza index/id/label'); } const size = js.size; const total = size.reduce((a,b)=>a*b,1); let values; if (Array.isArray(js.value)) values = js.value.slice(0,total); else { values = new Array(total).fill(null); for (const [k,v] of Object.entries(js.value)) values[Number(k)] = v; } const tIdx = ids.indexOf(timeId); const tLen = size[tIdx]; if (values.length !== tLen) { // estrai la sezione lungo il tempo assumendo le altre dimensioni a indice 0 const strides = []; for (let i=ids.length-1, acc=1; i>=0; i--) { strides[i]=acc; acc*=size[i]; } const baseIndex = 0; const step = strides[tIdx]; const v2 = []; for (let k=0; k<tLen; k++) v2[k] = values[baseIndex + k*step]; values = v2; } const series = timeCodes.map((c,i)=>({ y: Number(String(c).replace(/[^0-9]/g,'')), v: values[i]===null? null : Number(values[i]) })) .filter(p => Number.isFinite(p.y) && p.v!=null && !Number.isNaN(p.v)) .sort((a,b)=>a.y-b.y); return series; } async function fetchEurostat(url) { const r = await fetch(url, { headers: { 'accept':'application/json' }}); if (!r.ok) throw new Error('Eurostat HTTP '+r.status); return r.json(); } async function getLatestOADR() { const u = `${eurostatBase}/DEMO_PJANIND?geo=IT&indic_de=OLDDEP1&lastTimePeriod=1`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); if (!series.length) throw new Error('Nessun dato OADR'); const last = series[series.length-1]; console.debug('OADR last', last); return { year: last.y, value: last.v }; } async function getProjectedOADR(projection='BSL', threshold=60) { const u = `${eurostatBase}/TPS00200?freq=A&indic_de=OLDDEP1&geo=IT&projection=${encodeURIComponent(projection)}&sinceTimePeriod=2019`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); let crossYear = null; for (const p of series) { if (p.v >= threshold) { crossYear = p.y; break; } } console.debug('OADR projected first >=', threshold, crossYear); return { series, crossYear }; } // Spesa pensioni / PIL (%) – TPS00103 async function getPensionSpend(threshold=17.0) { const u = `${eurostatBase}/TPS00103?geo=IT&sinceTimePeriod=2000`; const js = await fetchEurostat(u); const series = jsonstatTimeSeries(js); const last = series[series.length-1]; const crossYear = last && last.v >= threshold ? last.y : null; console.debug('Spend last', last, 'first >=', threshold, crossYear); return { series, last, crossYear }; } async function recalc() { const oadrTh = Number(document.getElementById('oadr').value); const spendTh = Number(document.getElementById('spesa').value); const proj = document.getElementById('proj').value; const status = document.getElementById('status'); status.textContent = 'Aggiornamento…'; let latestOADR, projOADR, spend; let notes = []; try { latestOADR = await getLatestOADR(); document.getElementById('lastOADR').textContent = `OADR ultimo: ${fmt(latestOADR.value)} (anno ${latestOADR.year}) — Eurostat DEMO_PJANIND`; } catch (e) { document.getElementById('lastOADR').innerHTML = `<span class="err">Errore OADR: ${e.message}</span>`; } try { projOADR = await getProjectedOADR(proj, oadrTh); } catch (e) { notes.push('Proiezioni OADR non disponibili.'); } try { spend = await getPensionSpend(spendTh); if (spend.last) { document.getElementById('lastSpend').textContent = `Spesa/PIL ultimo: ${fmt(spend.last.v)}% (anno ${spend.last.y}) — Eurostat TPS00103`; } else { document.getElementById('lastSpend').textContent = 'Spesa/PIL: —'; } } catch (e) { document.getElementById('lastSpend').innerHTML = `<span class="warn">Spesa/PIL non letta: ${e.message}</span>`; } const candidates = []; if (projOADR?.crossYear) candidates.push({ y: projOADR.crossYear, lbl:'OADR' }); if (spend?.crossYear) candidates.push({ y: spend.crossYear, lbl:'Spesa/PIL' }); candidates.sort((a,b)=>a.y-b.y); if (candidates.length) { renderCountdown(candidates[0].y, candidates[0].lbl); } else { renderCountdown(null); } document.getElementById('notes').textContent = notes.join(' '); status.textContent = 'OK'; } document.getElementById('apply').addEventListener('click', recalc); recalc(); </script>
- </body> </html>
+    <div class="container">
+        <h1>Previsione Sostenibilità del Sistema Pensionistico Italiano</h1>
+        <p>Questa pagina analizza la sostenibilità del sistema pensionistico italiano utilizzando gli ultimi dati disponibili da ISTAT. Un "Indice di Sostenibilità Pensionistica" semplificato viene calcolato per fornire un'indicazione sintetica della situazione.</p>
 
+        <div id="loader" class="loader"></div>
+
+        <div id="dashboard" style="display:none;">
+            <h2>Dati Chiave</h2>
+            <div class="data-point">
+                <strong>Rapporto di Dipendenza Strutturale:</strong> <span id="dependency-ratio"></span>
+                <p><small>(Popolazione 65+ anni / Popolazione 20-64 anni)</small></p>
+            </div>
+            <div class="data-point">
+                <strong>Spesa Pensionistica su PIL:</strong> <span id="pension-spending-gdp"></span>%
+            </div>
+            <div class="data-point">
+                <strong>Ultimo dato PIL (annuale, miliardi di €):</strong> <span id="gdp"></span>
+            </div>
+
+            <h2>Indice di Sostenibilità Pensionistica</h2>
+            <p>Questo indice combina il rapporto di dipendenza e la spesa pensionistica in percentuale del PIL. Un valore più alto indica una maggiore pressione sul sistema.</p>
+            <div id="sustainability-index"></div>
+            <div id="sustainability-text" style="text-align: center; font-style: italic;"></div>
+        </div>
+
+        <div class="disclaimer">
+            <p><strong>Disclaimer:</strong></p>
+            <ul>
+                <li>Questa è una simulazione semplificata e non una previsione ufficiale.</li>
+                <li>L' "Indice di Sostenibilità Pensionistica" è un indicatore non scientifico creato a scopo dimostrativo.</li>
+                <li>I dati sono recuperati tramite le API ISTAT e si basano sulle ultime rilevazioni disponibili, che potrebbero non essere in tempo reale.</li>
+                <li>La sostenibilità di un sistema pensionistico è un fenomeno complesso influenzato da numerosi altri fattori non inclusi in questo modello.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loader = document.getElementById('loader');
+            const dashboard = document.getElementById('dashboard');
+
+            // Funzione per recuperare i dati dall'API ISTAT SDMX
+            async function fetchData(dataflow) {
+                const url = `http://sdmx.istat.it/SDMXWS/rest/data/${dataflow}/`;
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    const dataText = await response.text();
+                    return parseSdmx(dataText);
+                } catch (error) {
+                    console.error(`Errore nel recupero dei dati per ${dataflow}:`, error);
+                    return null;
+                }
+            }
+
+            // Funzione molto semplificata per il parsing di una risposta SDMX-XML
+            function parseSdmx(xmlString) {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+                const series = xmlDoc.getElementsByTagName("generic:Series");
+                const data = [];
+
+                for (let i = 0; i < series.length; i++) {
+                    const seriesKey = series[i].getElementsByTagName("generic:SeriesKey")[0];
+                    const attributes = series[i].getElementsByTagName("generic:Attributes")[0];
+                    const obs = series[i].getElementsByTagName("generic:Obs");
+
+                    let record = {};
+                    const seriesValues = seriesKey.getElementsByTagName("generic:Value");
+                    for (let j = 0; j < seriesValues.length; j++) {
+                        record[seriesValues[j].getAttribute("id")] = seriesValues[j].getAttribute("value");
+                    }
+
+                    const obsValues = obs[0].getElementsByTagName("generic:ObsValue")[0];
+                    record['value'] = parseFloat(obsValues.getAttribute("value"));
+
+                    data.push(record);
+                }
+                return data;
+            }
+
+            // Calcolo del rapporto di dipendenza
+            async function getDependencyRatio() {
+                // ISTAT dataflow per la popolazione residente per sesso, età e stato civile al 1° gennaio
+                const populationData = await fetchData('IT1/22_289');
+                if (!populationData) return { ratio: 'N/A', year: 'N/A' };
+
+                const latestYear = Math.max(...populationData.map(d => parseInt(d.TIME_PERIOD.substring(0, 4))));
+
+                const yearData = populationData.filter(d => d.TIME_PERIOD.startsWith(latestYear.toString()));
+
+                let pop20to64 = 0;
+                let pop65plus = 0;
+
+                yearData.forEach(d => {
+                    const age = parseInt(d.ETA.substring(1)); // ETA è tipo "Y20", "Y65", etc.
+                    if (age >= 20 && age <= 64) {
+                        pop20to64 += d.value;
+                    } else if (age >= 65) {
+                        pop65plus += d.value;
+                    }
+                });
+
+                const dependencyRatio = (pop65plus / pop20to64) * 100;
+                return {
+                    ratio: dependencyRatio.toFixed(2),
+                    year: latestYear
+                };
+            }
+
+            // Recupero della spesa pensionistica in rapporto al PIL
+            async function getPensionSpendingToGdp() {
+                // ISTAT dataflow per la spesa delle amministrazioni pubbliche per funzione
+                const spendingData = await fetchData('IT1/47_83');
+                if (!spendingData) return { percentage: 'N/A', year: 'N/A' };
+                
+                // Filtriamo per la funzione "Vecchiaia" (CP09)
+                const pensionSpending = spendingData.filter(d => d.COFOG_XAP === 'CP09');
+                const latestYear = Math.max(...pensionSpending.map(d => parseInt(d.TIME_PERIOD.substring(0, 4))));
+                const latestSpending = pensionSpending.find(d => d.TIME_PERIOD.startsWith(latestYear.toString()));
+
+                return {
+                    percentage: latestSpending ? latestSpending.value.toFixed(2) : 'N/A',
+                    year: latestYear
+                };
+            }
+            
+            // Recupero del PIL
+            async function getGdp() {
+                // ISTAT dataflow per i principali aggregati economici
+                const gdpData = await fetchData('IT1/DCCN_TNA');
+                 if (!gdpData) return { value: 'N/A', year: 'N/A' };
+                
+                // Filtriamo per il PIL ai prezzi di mercato (B1G) in milioni di euro (M)
+                const gdp = gdpData.filter(d => d.CONTO === 'B1G' && d.PREZZI === 'V' && d.ADJUSTMENT === 'N' && d.OPERATORE_S1 === 'S1' );
+                const latestYear = Math.max(...gdp.map(d => parseInt(d.TIME_PERIOD.substring(0, 4))));
+                const latestGdp = gdp.find(d => d.TIME_PERIOD.startsWith(latestYear.toString()));
+                
+                return {
+                    value: latestGdp ? (latestGdp.value / 1000).toFixed(2) : 'N/A', // Converti in miliardi
+                    year: latestYear
+                };
+            }
+
+
+            // Funzione principale per eseguire tutto
+            async function run() {
+                const [dependency, spending, gdp] = await Promise.all([
+                    getDependencyRatio(),
+                    getPensionSpendingToGdp(),
+                    getGdp()
+                ]);
+
+                document.getElementById('dependency-ratio').textContent = `${dependency.ratio}% (Anno: ${dependency.year})`;
+                document.getElementById('pension-spending-gdp').textContent = `${spending.percentage} (Anno: ${spending.year})`;
+                document.getElementById('gdp').textContent = `${gdp.value} (Anno: ${gdp.year})`;
+
+                // Calcolo dell'Indice di Sostenibilità
+                const depRatio = parseFloat(dependency.ratio);
+                const spendRatio = parseFloat(spending.percentage);
+                let sustainabilityIndex = 0;
+                let sustainabilityText = "Dati non sufficienti per il calcolo.";
+                let color = "#333";
+
+                if (!isNaN(depRatio) && !isNaN(spendRatio)) {
+                    // Formula semplificata: (Rapporto Dipendenza * 0.6) + (Spesa/PIL * 0.4)
+                    sustainabilityIndex = (depRatio * 0.6) + (spendRatio * 0.4);
+                    sustainabilityIndex = sustainabilityIndex.toFixed(2);
+                    
+                    if (sustainabilityIndex < 35) {
+                        sustainabilityText = "Sostenibilità Sotto Controllo";
+                        color = "green";
+                    } else if (sustainabilityIndex >= 35 && sustainabilityIndex < 45) {
+                        sustainabilityText = "Situazione da Monitorare";
+                        color = "orange";
+                    } else {
+                        sustainabilityText = "Criticità Elevata";
+                        color = "red";
+                    }
+                }
+
+                const indexElement = document.getElementById('sustainability-index');
+                indexElement.textContent = sustainabilityIndex;
+                indexElement.style.color = color;
+                document.getElementById('sustainability-text').textContent = sustainabilityText;
+                
+                loader.style.display = 'none';
+                dashboard.style.display = 'block';
+            }
+
+            run();
+        });
+    </script>
+
+</body>
+</html>
